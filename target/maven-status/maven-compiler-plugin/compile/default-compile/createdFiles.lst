@@ -1,3 +1,5 @@
+com\decssoft\animation\AnimationBuilder.class
+com\decssoft\animation\AnimationFactory.class
 com\decssoft\dukeinteractive.class
-com\decssoft\factory\EntityType.class
 com\decssoft\factory\GameFactory.class
+com\decssoft\factory\EntityType.class

@@ -1,18 +1,20 @@
 package com.decssoft;
 
+import com.almasb.fxgl.animation.AnimatedValue;
+import com.almasb.fxgl.animation.Animation;
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
 import com.almasb.fxgl.app.scene.Camera3D;
 import static com.almasb.fxgl.dsl.FXGL.getGameScene;
 import static com.almasb.fxgl.dsl.FXGL.getGameWorld;
+import static com.almasb.fxgl.dsl.FXGL.onKeyDown;
 import static com.almasb.fxgl.dsl.FXGL.spawn;
+import static com.almasb.fxgl.dsl.FXGLForKtKt.animationBuilder;
 import static com.almasb.fxgl.dsl.FXGLForKtKt.getAssetLoader;
-import static com.almasb.fxgl.dsl.FXGLForKtKt.getGameTimer;
-import static com.almasb.fxgl.dsl.FXGLForKtKt.getInput;
 import com.almasb.fxgl.entity.Entity;
-import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.scene3d.CustomShape3D.MeshVertex;
 import com.almasb.fxgl.scene3d.Model3D;
+import com.decssoft.animation.AnimationSequence;
 import com.decssoft.factory.GameFactory;
 import java.util.List;
 import javafx.scene.input.KeyCode;
@@ -28,6 +30,13 @@ public class dukeinteractive extends GameApplication {
     private Camera3D camera;
     double distance = 4;
     Entity duke;
+    private boolean isWaving = false;
+    Animation anim1;
+
+    private List<MeshVertex> verticesPos0;
+    private List<MeshVertex> verticesPos1;
+    private List<MeshVertex> verticesPos2;
+    private AnimationSequence wave;
 
     public static void main(String args[]) {
         launch(args);
@@ -39,6 +48,14 @@ public class dukeinteractive extends GameApplication {
         getGameWorld().addEntityFactory(new GameFactory());
         duke = spawn("duke", 0, 0, 0);
         getGameScene().setFPSCamera(true);
+
+        // get vertices for original position
+        verticesPos0 = duke.getViewComponent().getChild(0, Model3D.class).getVertices();
+        verticesPos1 = getAssetLoader().loadModel3D("dukewave1.obj").getVertices();
+        verticesPos2 = getAssetLoader().loadModel3D("dukewave2.obj").getVertices();
+        wave = new AnimationSequence(verticesPos0, Duration.ZERO, verticesPos1, verticesPos2);
+        //load vertices for wave positio 1 and 2 (hand to right, hand to left)
+        wave.setAnimation();
     }
 
     @Override
@@ -74,73 +91,103 @@ public class dukeinteractive extends GameApplication {
             }
         });
 
-        getInput().addAction(new UserAction("wave") {
-            List<MeshVertex> hi;
-            List<MeshVertex> hi1;
-            List<MeshVertex> original;
+        onKeyDown(KeyCode.A, "Wave", () -> {
+            wave.play();
+        });
+//            Animation anim1 = animationBuilder()
+//                    .duration(Duration.seconds(0.3))
+//                    .animate(new AnimatedValue<>(0.0, 1.0))
+//                    .onProgress(t -> {
+//                        for (int i = 0; i < verticesPos0.size(); i++) {
+//                            MeshVertex v = verticesPos0.get(i);
+//                            MeshVertex from = verticesPos0.get(i);
+//                            MeshVertex to = verticesPos1.get(i);
+//
+//                            double x = from.getX() * (1 - t) + to.getX() * t;
+//                            double y = from.getY() * (1 - t) + to.getY() * t;
+//                            double z = from.getZ() * (1 - t) + to.getZ() * t;
+//
+//                            v.setX(x);
+//                            v.setY(y);
+//                            v.setZ(z);
+//                        }
+//                    })
+//                    .build();
+//            animationBuilder()
+//                    .duration(Duration.seconds(0.7))
+//                    .animate(new AnimatedValue<>(0.0, 1.0))
+//                    .onProgress(t -> {
+//                        for (int i = 0; i < verticesPos0.size(); i++) {
+//                            MeshVertex v = verticesPos0.get(i);
+//                            MeshVertex from = verticesPos0.get(i);
+//                            MeshVertex to = verticesPos1.get(i);
+//
+//                            double x = from.getX() * (1 - t) + to.getX() * t;
+//                            double y = from.getY() * (1 - t) + to.getY() * t;
+//                            double z = from.getZ() * (1 - t) + to.getZ() * t;
+//
+//                            v.setX(x);
+//                            v.setY(y);
+//                            v.setZ(z);
+//                        }
+//                    })
+//                    .buildAndPlay();
+//        });
+        //            if (isWaving)
+        //                return;
+        //
+        //            isWaving = true;
+        //
+        //            toPosition(verticesPos1, () -> {
+        //                toPosition(verticesPos2, () -> {
+        //                    isWaving = false;
+        //                });
+        //            });
+        //        });
+    }
 
-            @Override
-            protected void onActionBegin() {
-                //load vertices for wave positio 1 and 2 (hand to right, hand to left)
-                hi = getAssetLoader().loadModel3D("dukewave1.obj").getVertices();
-                hi1 = getAssetLoader().loadModel3D("dukewave2.obj").getVertices();
-                // get vertices for original position
-                original = duke.getViewComponent().getChild(0, Model3D.class).getVertices();
-            }
+    private void toPosition(List<MeshVertex> pos, Runnable onFinished) {
+        Animation anim1 = animationBuilder()
+                .onFinished(onFinished)
+                .duration(Duration.seconds(0.3))
+                .animate(new AnimatedValue<>(0.0, 1.0))
+                .onProgress(t -> {
+                    for (int i = 0; i < verticesPos0.size(); i++) {
+                        MeshVertex v = verticesPos0.get(i);
+                        MeshVertex from = verticesPos0.get(i);
+                        MeshVertex to = pos.get(i);
 
-            @Override
-            protected void onAction() {
-                final double[] t = {0.0};
-                final double speed = 0.02;
-
-                //moving Duke to position 1 by translating vertices
-                getGameTimer().runAtInterval(() -> {
-                    for (int i = 0; i < original.size(); i++) {
-                        MeshVertex v = original.get(i);
-                        MeshVertex from = original.get(i);
-                        MeshVertex to = hi.get(i);
-
-                        double x = from.getX() * (1 - t[0]) + to.getX() * t[0];
-                        double y = from.getY() * (1 - t[0]) + to.getY() * t[0];
-                        double z = from.getZ() * (1 - t[0]) + to.getZ() * t[0];
+                        double x = from.getX() * (1 - t) + to.getX() * t;
+                        double y = from.getY() * (1 - t) + to.getY() * t;
+                        double z = from.getZ() * (1 - t) + to.getZ() * t;
 
                         v.setX(x);
                         v.setY(y);
                         v.setZ(z);
                     }
+                })
+                .build();
 
-                    t[0] += speed;
+        Animation anim2 = animationBuilder()
+                .onFinished(onFinished)
+                .duration(Duration.seconds(0.3))
+                .animate(new AnimatedValue<>(0.0, 1.0))
+                .onProgress(t -> {
+                    for (int i = 0; i < verticesPos0.size(); i++) {
+                        MeshVertex v = verticesPos0.get(i);
+                        MeshVertex from = verticesPos0.get(i);
+                        MeshVertex to = pos.get(i);
 
-                    if (t[0] >= 1.0) {
-                        t[0] = 1.0;
-                    }
-                }, Duration.seconds(1.0 / 60), 1);
-
-                // Schedule next animation immediately after this one ends
-                // moving duke to position 2 by translating vertices
-                getGameTimer().runOnceAfter(() -> {
-                    for (int i = 0; i < original.size(); i++) {
-                        MeshVertex v = original.get(i);
-                        MeshVertex from = original.get(i);
-                        MeshVertex to = hi1.get(i);
-
-                        double x = from.getX() * (1 - t[0]) + to.getX() * t[0];
-                        double y = from.getY() * (1 - t[0]) + to.getY() * t[0];
-                        double z = from.getZ() * (1 - t[0]) + to.getZ() * t[0];
+                        double x = from.getX() * (1 - t) + to.getX() * t;
+                        double y = from.getY() * (1 - t) + to.getY() * t;
+                        double z = from.getZ() * (1 - t) + to.getZ() * t;
 
                         v.setX(x);
                         v.setY(y);
                         v.setZ(z);
                     }
-
-                    t[0] += speed;
-
-                    if (t[0] >= 1.0) {
-                        t[0] = 1.0;
-                        System.out.println("second complete");
-                    }
-                }, Duration.seconds(1.0 / 60));
-            }
-        }, KeyCode.A);
+                })
+                .build();
+        animationBuilder().buildSequence(anim1, anim2);
     }
 }
